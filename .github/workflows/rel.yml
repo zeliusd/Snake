@@ -1,0 +1,98 @@
+name: Release Build (Linux & Windows)
+
+on:
+  push:
+    tags:
+      - 'v*'  # Solo se ejecuta en tags que empiecen con "v"
+
+jobs:
+  linux:
+    name: Build Linux binary
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+          fetch-depth: 1
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y cmake gcc g++ libgl1-mesa-dev libx11-dev libxcursor-dev libxrandr-dev libxi-dev libxinerama-dev libxxf86vm-dev libopenal-dev libasound2-dev libpulse-dev libudev-dev libdrm-dev
+
+      - name: Build Linux binary
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build
+          chmod +x build/juego
+          mv build/juego juego-linux
+
+      - name: Upload Linux binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: juego-linux
+          path: juego-linux
+
+  windows:
+    name: Build Windows .exe
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+          fetch-depth: 1
+
+      - name: Install MinGW and dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y cmake mingw-w64
+
+      - name: Cross-compile Windows .exe (static + no console)
+        run: |
+          mkdir build-win
+          cd build-win
+          cmake .. \
+            -DCMAKE_SYSTEM_NAME=Windows \
+            -DCMAKE_C_COMPILER=x86_64-w64-mingw32-gcc \
+            -DCMAKE_CXX_COMPILER=x86_64-w64-mingw32-g++ \
+            -DCMAKE_EXE_LINKER_FLAGS="-static -static-libgcc -static-libstdc++ -mwindows"
+          cmake --build .
+          mv juego.exe ../juego-windows.exe
+
+      - name: Upload Windows binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: juego-windows
+          path: juego-windows.exe
+
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [linux, windows]
+
+    steps:
+      - name: Download Linux binary artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: juego-linux
+          path: artifacts
+
+      - name: Download Windows binary artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: juego-windows
+          path: artifacts
+
+      - name: Create GitHub Release and upload binaries
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/juego-linux
+            artifacts/juego-windows.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+

@@ -1,0 +1,39 @@
+name: C++ CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v4
+      with:
+        submodules: true
+        fetch-depth: 1
+
+    - name: Install dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y cmake gcc g++ libgl1-mesa-dev libx11-dev libxcursor-dev libxrandr-dev libxi-dev libxinerama-dev libxxf86vm-dev libopenal-dev libasound2-dev libpulse-dev libudev-dev libdrm-dev
+
+    - name: Configure CMake
+      run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+    - name: Build
+      run: cmake --build build
+
+    - name: Run tests (opcional)
+      run: |
+        if [ -f build/tests ]; then
+          ./build/tests
+        else
+          echo "No se encontraron tests"
+        fi
+
